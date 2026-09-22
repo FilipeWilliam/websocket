@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Chat em Tempo Real — WebSocket</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 480px; margin: 40px auto; }
+  #login, #chat { display: none; }
+  #login.ativo, #chat.ativo { display: block; }
+  #mensagens { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 10px; margin-bottom: 10px; }
+  .sistema { color: #888; font-style: italic; font-size: 0.9em; }
+  .minha { color: #2f7d6b; font-weight: bold; }
+  input { padding: 8px; width: 70%; }
+  button { padding: 8px 16px; }
+</style>
+</head>
+<body>
+
+<div id="login" class="ativo">
+  <h2>Entrar no chat</h2>
+  <input id="nomeInput" placeholder="Seu nome" /><br><br>
+  <input id="salaInput" placeholder="Nome da sala (ex: turma-1)" /><br><br>
+  <button onclick="entrar()">Entrar</button>
+</div>
+
+<div id="chat">
+  <h2>Sala: <span id="salaAtual"></span></h2>
+  <div id="mensagens"></div>
+  <input id="mensagemInput" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter') enviar()" />
+  <button onclick="enviar()">Enviar</button>
+</div>
+
+<script>
+  const ws = new WebSocket("ws://localhost:8080");
+  console.log(ws)
+  let meuNome = "";
+
+  ws.onmessage = (event) => {
+    const payload = JSON.parse(event.data);
+    const div = document.getElementById("mensagens");
+    const p = document.createElement("p");
+
+    if (payload.tipo === "sistema") {
+      p.className = "sistema";
+      p.textContent = payload.texto;
+    } else if (payload.tipo === "mensagem") {
+      p.innerHTML = `<strong class="${payload.nome === meuNome ? 'minha' : ''}">${payload.nome}:</strong> ${payload.texto}`;
+    }
+
+    div.appendChild(p);
+    div.scrollTop = div.scrollHeight;
+  };
+
+  function entrar() {
+    meuNome = document.getElementById("nomeInput").value || "Anônimo";
+    const sala = document.getElementById("salaInput").value || "geral";
+
+    ws.send(JSON.stringify({ tipo: "entrar", nome: meuNome, sala }));
+
+    document.getElementById("salaAtual").textContent = sala;
+    document.getElementById("login").classList.remove("ativo");
+    document.getElementById("chat").classList.add("ativo");
+  }
+
+  function enviar() {
+    const input = document.getElementById("mensagemInput");
+    
+    if (!input.value.trim()) {
+        return
+    };
+    
+    ws.send(JSON.stringify({ tipo: "mensagem", texto: input.value }));
+    input.value = "";
+  }
+</script>
+
+</body>
+</html>
